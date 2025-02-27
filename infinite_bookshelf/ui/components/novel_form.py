@@ -4,10 +4,11 @@ Component function for novel generation form
 
 import streamlit as st
 
-MODEL_LIST = ["llama-3.3-70b-specdec", "llama-3.2-90b-versatile", "gemma2-9b-it"]
+MODEL_LIST = ["deepseek-r1-distill-llama-70b", "llama-3.3-70b-versatile", "gemma2-9b-it"]
 GENRES = ["Fantasy", "Science Fiction", "Mystery", "Romance", "Thriller", "Historical Fiction", "Horror", "Adventure"]
 NARRATIVE_STYLES = ["First Person", "Third Person Limited", "Third Person Omniscient", "Multiple Perspectives"]
 TONES = ["Dark", "Humorous", "Inspirational", "Suspenseful", "Melancholic", "Whimsical", "Serious", "Romantic"]
+LANGUAGES = ["Hungarian","English", "Spanish", "French", "German", "Italian", "Portuguese", "Japanese", "Chinese", "Russian", "Arabic"]
 
 def render_novel_form(on_submit, button_disabled=False, button_text="Generate"):
     st.sidebar.title("Novel Generator Settings")
@@ -35,6 +36,13 @@ def render_novel_form(on_submit, button_disabled=False, button_text="Generate"):
         section_agent_model = st.selectbox(
             "Section Writer Model", MODEL_LIST, index=1,
             help="Generates the actual narrative content"
+        )
+        
+        # Add language selection in sidebar
+        st.markdown("### Language Settings:")
+        language = st.selectbox(
+            "Output Language", LANGUAGES, index=0,
+            help="Select the language for your generated novel"
         )
         
         st.markdown("\n")
@@ -97,6 +105,31 @@ def render_novel_form(on_submit, button_disabled=False, button_text="Generate"):
             value=""
         )
 
+        st.markdown("### Story Arc")
+        narrative_arc = st.selectbox(
+            "Choose a narrative arc for your story",
+            [
+                "auto", 
+                "rags_to_riches", 
+                "riches_to_rags", 
+                "man_in_hole", 
+                "icarus", 
+                "cinderella", 
+                "oedipus"
+            ],
+            format_func=lambda x: {
+                "auto": "Auto (Based on genre)",
+                "rags_to_riches": "Rags to Riches (Rise)",
+                "riches_to_rags": "Riches to Rags (Fall)",
+                "man_in_hole": "Man in a Hole (Fall then Rise)",
+                "icarus": "Icarus / Freytag's Pyramid (Rise then Fall)",
+                "cinderella": "Cinderella (Rise then Fall then Rise)",
+                "oedipus": "Oedipus (Fall then Rise then Fall)"
+            }.get(x, x),
+            help="Select a narrative arc to shape your story's emotional trajectory",
+            index=0
+        )
+
         submitted = st.form_submit_button(
             button_text,
             on_click=on_submit,
@@ -117,6 +150,8 @@ def render_novel_form(on_submit, button_disabled=False, button_text="Generate"):
         pacing,
         additional_instructions,
         character_seeds,
+        narrative_arc,
+        language,
         title_agent_model,
         character_agent_model,
         plot_agent_model,

@@ -9,23 +9,28 @@ def generate_book_title(prompt: str, model: str, groq_provider):
     """
     Generate a book title using AI.
     """
-    completion = groq_provider.chat.completions.create(
-        model="llama-3.3-70b-specdec",
-        messages=[
+    completion_params = {
+        "model": model,
+        "messages": [
             {
                 "role": "system",
-                "content": "Generate suitable book titles for the provided topics. There is only one generated book title! Don't give any explanation or add any symbols, just write the title of the book. The requirement for this title is that it must be between 7 and 25 words long, and it must be attractive enough!",
+                "content": "You are an expert book title creator. Generate a compelling, intriguing title that captures the essence of a novel concept.",
             },
             {
                 "role": "user",
-                "content": f"Generate a book title for the following topic. There is only one generated book title! Don't give any explanation or add any symbols, just write the title of the book. The requirement for this title is that it must be at least 7 words and 25 words long, and it must be attractive enough:\n\n{prompt}",
+                "content": f"Create a captivating title for a novel with this concept: {prompt}\n\nReturn only the title, nothing else.",
             },
         ],
-        temperature=0.7,
-        max_tokens=100,
-        top_p=1,
-        stream=False,
-        stop=None,
-    )
-
-    return completion.choices[0].message.content.strip()
+        "temperature": 0.8,
+        "max_tokens": 50,
+        "top_p": 1,
+        "stream": False,
+        "stop": None,
+    }
+    
+    if "deepseek" in model.lower():
+        completion_params["reasoning_format"] = "hidden"
+    
+    completion = groq_provider.chat.completions.create(**completion_params)
+    
+    return completion.choices[0].message.content.strip().strip('"')

@@ -77,3 +77,40 @@ class Book:
             if isinstance(content, dict):
                 markdown_content += self.get_markdown_content(content, level + 1)
         return markdown_content
+
+    def add_section_content(self, title, content):
+        """
+        Add content to a specific section.
+        If the section doesn't exist, log a warning and skip it.
+        """
+        # Check if this is a metadata field that should be ignored
+        metadata_fields = [
+            "narrative_arc", "emotional_tone", "characters_involved", 
+            "plot_structure", "narrative_advancement", "EXPOSITION", 
+            "INCITING INCIDENT", "RISING ACTION", "MIDPOINT", 
+            "COMPLICATIONS", "CLIMAX", "RESOLUTION"
+        ]
+        
+        # Skip metadata fields that aren't actual sections
+        if any(title.lower() == field.lower() for field in metadata_fields):
+            print(f"Skipping metadata field: {title}")
+            return
+        
+        # Try to find the section in the book structure
+        found = False
+        for chapter in self.structure:
+            if chapter == title:
+                self.contents[title] = content
+                found = True
+                break
+            elif isinstance(self.structure[chapter], dict):
+                for section in self.structure[chapter]:
+                    if section == title:
+                        if chapter not in self.contents:
+                            self.contents[chapter] = {}
+                        self.contents[chapter][section] = content
+                        found = True
+                        break
+        
+        if not found:
+            print(f"Warning: Section '{title}' not found in book structure. Skipping content addition.")
