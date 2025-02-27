@@ -165,3 +165,22 @@ except Exception as e:
 
     if st.button("Clear"):
         st.rerun()
+
+# Add link to novel generator in navigation
+import streamlit as st
+
+st.set_page_config(
+    page_title="Infinite Bookshelf",
+    page_icon="📚",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+st.sidebar.title("Navigation")
+pages = {
+    "Book Generator": "/",
+    "Advanced Book Generator": "/advanced",
+    "Novel Generator": "/novel_generator",
+}
+for page_name, page_url in pages.items():
+    st.sidebar.page_link(page_url, label=page_name)
