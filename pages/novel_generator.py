@@ -201,11 +201,8 @@ try:
             print(json.dumps(novel_structure, indent=2))
             book.display_structure()
             
-            # Initialize tracking for completed sections (for character arc updates)
-            completed_sections_summary = ""
-            
             # Function to generate content for each section with character arc tracking
-            def stream_section_content(sections, context="", section_depth=0):
+            def stream_section_content(sections, summary="", context="", section_depth=0):
                 for title, content in sections.items():
                     # Create the plot context for this section
                     if isinstance(content, str):
@@ -223,7 +220,7 @@ try:
                             genre=genre,
                             tone=tone,
                             narrative_style=narrative_style,
-                            previous_sections_summary=completed_sections_summary,
+                            previous_sections_summary=summary,
                             additional_instructions=combined_instructions,
                             model=section_agent_model,
                             groq_provider=st.session_state.groq,
@@ -244,7 +241,7 @@ try:
                         
                         # Add this section to the completed sections summary (abbreviated)
                         section_summary = f"{title}: {section_content[:200]}..."
-                        completed_sections_summary += section_summary + "\n\n"
+                        summary += section_summary + "\n\n"
                         
                         # Update character arcs after significant plot points (chapter level or major scene)
                         if section_depth <= 1 and len(section_content) > 500:  # Only for chapters or major scenes
@@ -273,10 +270,10 @@ try:
                     
                     elif isinstance(content, dict):
                         new_context = f"{context}\nParent section: {title}"
-                        stream_section_content(content, new_context, section_depth + 1)
+                        summary = stream_section_content(content, summary, new_context, section_depth + 1)
             
             # Start the content generation process
-            stream_section_content(novel_structure)
+            completed_sections_summary = stream_section_content(novel_structure)
             
             # Generation complete
             st.session_state.button_disabled = False
