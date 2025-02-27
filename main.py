@@ -1,5 +1,6 @@
 # Page configuration - moved from bottom of file to top
 import streamlit as st
+import os
 
 st.set_page_config(
     page_title="Infinite Bookshelf",
@@ -9,13 +10,11 @@ st.set_page_config(
 )
 
 st.sidebar.title("Navigation")
-pages = {
-    "Book Generator": "/",
-    "Advanced Book Generator": "/advanced",
-    "Novel Generator": "/novel_generator",
-}
-for page_name, page_url in pages.items():
-    st.sidebar.page_link(page_url, label=page_name)
+
+# More compatible navigation approach
+st.sidebar.markdown("[Book Generator](/)") 
+st.sidebar.markdown("[Advanced Book Generator](/advanced)")
+st.sidebar.markdown("[Novel Generator](/novel_generator)")
 
 # 1: Import libraries
 import streamlit as st
