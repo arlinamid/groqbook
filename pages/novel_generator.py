@@ -7,7 +7,10 @@ from infinite_bookshelf.agents import (
     generate_section,
     generate_book_title,
     generate_characters,
-    generate_plot_structure
+    generate_plot_structure,
+    generate_novel_structure,
+    generate_novel_section,
+    update_character_arcs
 )
 from infinite_bookshelf.inference import GenerationStatistics
 from infinite_bookshelf.tools import create_markdown_file, create_pdf_file
@@ -29,7 +32,9 @@ states = {
     "statistics_text": "",
     "novel_title": "",
     "characters": {},
-    "plot": {},
+    "novel_structure": {},
+    "character_arcs": {},
+    "completed_sections": "",
     "generation_stage": "init"
 }
 
@@ -75,7 +80,7 @@ try:
         character_seeds,
         title_agent_model,
         character_agent_model,
-        plot_agent_model,
+        structure_agent_model,
         section_agent_model,
     ) = render_novel_form(
         on_submit=disable,
@@ -83,83 +88,99 @@ try:
         button_text=st.session_state.button_text,
     )
 
-    # Build the enhanced prompt with all novel parameters
     if submitted:
-        if len(concept_text) < 10:
-            raise ValueError("Novel concept must be at least 10 characters long")
-
-        st.session_state.button_disabled = True
-        st.session_state.statistics_text = "Generating novel components in background..."
-        st.session_state.generation_stage = "characters"
-
-        placeholder = st.empty()
-        display_statistics(
-            placeholder=placeholder, statistics_text=st.session_state.statistics_text
-        )
-
-        if not GROQ_API_KEY:
-            st.session_state.groq = Groq(api_key=groq_input_key)
-
-        # Generate enhanced prompt with all parameters
-        plot_parameters = f"""
-        Genre: {genre}
-        Narrative Style: {narrative_style}
-        Tone: {tone}
-        Plot Complexity: {complexity}
-        Pacing: {pacing}
-        Include Romance Subplot: {'Yes' if has_romance else 'No'}
-        Include Plot Twist: {'Yes' if has_twist else 'No'}
-        """
-        
-        combined_instructions = f"{additional_instructions}\n{plot_parameters}"
-            
-        # Step 1: Generate characters
-        st.session_state.statistics_text = "Generating characters..."
-        display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
-        
-        character_stats, characters_json = generate_characters(
-            prompt=concept_text,
-            additional_instructions=f"{combined_instructions}\n{character_seeds}",
-            number_of_characters=num_characters,
-            model=character_agent_model,
-            groq_provider=st.session_state.groq,
-        )
-        
-        characters_data = json.loads(characters_json)
-        st.session_state.characters = characters_data
-        
-        # Step 2: Generate novel title
-        st.session_state.statistics_text = "Generating novel title..."
-        display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
-        
-        st.session_state.novel_title = generate_book_title(
-            prompt=f"{concept_text}\nGenre: {genre}\nTone: {tone}",
-            model=title_agent_model,
-            groq_provider=st.session_state.groq,
-        )
-        
-        st.write(f"## {st.session_state.novel_title}")
-        
-        # Step 3: Generate plot structure
-        st.session_state.statistics_text = "Creating plot structure..."
-        display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
-        
-        plot_stats, plot_json = generate_plot_structure(
-            prompt=concept_text,
-            characters=json.dumps(characters_data),
-            genre=genre,
-            narrative_style=narrative_style,
-            additional_instructions=combined_instructions,
-            model=plot_agent_model,
-            groq_provider=st.session_state.groq,
-        )
-        
-        # Step 4: Generate novel content
         try:
-            plot_structure = json.loads(plot_json)
-            st.session_state.plot = plot_structure
+            # Create a placeholder for displaying generation statistics
+            placeholder = st.empty()
+            total_generation_statistics = GenerationStatistics(model_name="various")
             
-            book = Book(st.session_state.novel_title, plot_structure)
+            # Store API key if provided
+            if groq_input_key:
+                st.session_state.api_key = groq_input_key
+                st.session_state.groq = Groq(api_key=groq_input_key)
+                
+            # Set up additional instructions
+            romance_instruction = "Include a romantic subplot between characters." if has_romance else ""
+            pacing_instruction = f"The story should have {pacing.lower()} pacing."
+            complexity_instruction = f"Create a {complexity.lower()}-complexity plot structure."
+            
+            combined_instructions = f"{additional_instructions}\n{romance_instruction}\n{pacing_instruction}\n{complexity_instruction}"
+            
+            if character_seeds:
+                combined_instructions += f"\nUse these character ideas: {character_seeds}"
+                
+            # Generate novel title
+            st.session_state.statistics_text = "Generating title..."
+            display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
+            
+            title = generate_book_title(
+                prompt=concept_text,
+                model=title_agent_model,
+                groq_provider=st.session_state.groq,
+            )
+            
+            st.session_state.novel_title = title
+            st.markdown(f"# {title}")
+            
+            # Generate characters
+            st.session_state.statistics_text = "Generating characters..."
+            display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
+            
+            character_stats, characters_json = generate_characters(
+                prompt=concept_text,
+                additional_instructions=combined_instructions,
+                number_of_characters=num_characters,
+                model=character_agent_model,
+                groq_provider=st.session_state.groq,
+            )
+            
+            total_generation_statistics.add(character_stats)
+            st.session_state.statistics_text = str(total_generation_statistics)
+            display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
+            
+            characters_data = json.loads(characters_json)
+            st.session_state.characters = characters_data
+            
+            # Extract character goals for the arc tracker
+            character_goals = {}
+            for name, info in characters_data.items():
+                if isinstance(info, dict) and "motivations" in info:
+                    character_goals[name] = info["motivations"]
+                elif isinstance(info, dict) and "goals" in info:
+                    character_goals[name] = info["goals"]
+                else:
+                    character_goals[name] = "Unknown goals"
+            
+            # Generate novel structure using the enhanced structure writer
+            st.session_state.statistics_text = "Creating story structure..."
+            display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
+            
+            # Extract themes from concept
+            themes = concept_text.split()[:5]  # Simple extraction of potential themes
+            themes_str = ", ".join(themes)
+            
+            structure_stats, novel_structure_json = generate_novel_structure(
+                prompt=concept_text,
+                characters=characters_json,
+                genre=genre,
+                narrative_style=narrative_style,
+                themes=themes_str,
+                has_twist=has_twist,
+                complexity_level=complexity,
+                additional_instructions=combined_instructions,
+                model=structure_agent_model,
+                groq_provider=st.session_state.groq,
+            )
+            
+            total_generation_statistics.add(structure_stats)
+            st.session_state.statistics_text = str(total_generation_statistics)
+            display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
+            
+            novel_structure = json.loads(novel_structure_json)
+            st.session_state.novel_structure = novel_structure
+            
+            # Create the book object to populate with content
+            book = Book(title, novel_structure)
             st.session_state.book = book
             
             # Display character information
@@ -177,11 +198,14 @@ try:
             st.markdown("---")
             
             # Print the book structure for debugging
-            print(json.dumps(plot_structure, indent=2))
+            print(json.dumps(novel_structure, indent=2))
             book.display_structure()
             
-            # Function to generate content for each section
-            def stream_section_content(sections, context=""):
+            # Initialize tracking for completed sections (for character arc updates)
+            completed_sections_summary = ""
+            
+            # Function to generate content for each section with character arc tracking
+            def stream_section_content(sections, context="", section_depth=0):
                 for title, content in sections.items():
                     # Create the plot context for this section
                     if isinstance(content, str):
@@ -190,16 +214,22 @@ try:
                         st.session_state.statistics_text = f"Generating section: {title}"
                         display_statistics(placeholder=placeholder, statistics_text=st.session_state.statistics_text)
                         
-                        content_stream = generate_section(
-                            prompt=title,
+                        # Use novel_section_writer instead of regular section_writer
+                        content_stream = generate_novel_section(
+                            title=title,
+                            section_description=content,
                             plot_context=section_context,
-                            characters=json.dumps(characters_data),
+                            characters=json.dumps(st.session_state.get("character_arcs", characters_data)),
+                            genre=genre,
                             tone=tone,
+                            narrative_style=narrative_style,
+                            previous_sections_summary=completed_sections_summary,
                             additional_instructions=combined_instructions,
                             model=section_agent_model,
                             groq_provider=st.session_state.groq,
                         )
                         
+                        section_content = ""
                         for chunk in content_stream:
                             # Check if GenerationStatistics data is returned
                             if isinstance(chunk, GenerationStatistics):
@@ -209,17 +239,65 @@ try:
                                     statistics_text=st.session_state.statistics_text,
                                 )
                             elif chunk:
+                                section_content += chunk
                                 st.session_state.book.update_content(title, chunk)
+                        
+                        # Add this section to the completed sections summary (abbreviated)
+                        section_summary = f"{title}: {section_content[:200]}..."
+                        completed_sections_summary += section_summary + "\n\n"
+                        
+                        # Update character arcs after significant plot points (chapter level or major scene)
+                        if section_depth <= 1 and len(section_content) > 500:  # Only for chapters or major scenes
+                            try:
+                                arc_stats, updated_arcs = update_character_arcs(
+                                    characters=json.dumps(st.session_state.get("character_arcs", characters_data)),
+                                    current_plot_point=f"{title}: {content}",
+                                    completed_sections=section_summary,
+                                    character_goals=json.dumps(character_goals),
+                                    model=character_agent_model,
+                                    groq_provider=st.session_state.groq,
+                                )
+                                
+                                # Update character arcs for future sections
+                                st.session_state.character_arcs = json.loads(updated_arcs)
+                                
+                                # Add to total stats
+                                total_generation_statistics.add(arc_stats)
+                                st.session_state.statistics_text = str(total_generation_statistics)
+                                display_statistics(
+                                    placeholder=placeholder, 
+                                    statistics_text=st.session_state.statistics_text
+                                )
+                            except Exception as e:
+                                print(f"Error updating character arcs: {e}")
                     
                     elif isinstance(content, dict):
                         new_context = f"{context}\nParent section: {title}"
-                        stream_section_content(content, new_context)
+                        stream_section_content(content, new_context, section_depth + 1)
             
             # Start the content generation process
-            stream_section_content(plot_structure)
+            stream_section_content(novel_structure)
+            
+            # Generation complete
+            st.session_state.button_disabled = False
+            st.session_state.button_text = "Regenerate Novel"
+            
+            # Show updated character arcs at the end
+            if st.session_state.get("character_arcs"):
+                st.markdown("## Character Development Throughout the Story")
+                for character, details in st.session_state.character_arcs.items():
+                    with st.expander(f"{character}'s Arc"):
+                        if isinstance(details, dict):
+                            for key, value in details.items():
+                                st.markdown(f"**{key}**: {value}")
+                        else:
+                            st.markdown(details)
             
         except json.JSONDecodeError:
-            st.error("Failed to decode the plot structure. Please try again.")
+            st.error("Failed to decode JSON data. Please try again.")
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+            st.session_state.button_disabled = False
 
 except Exception as e:
     st.session_state.button_disabled = False
