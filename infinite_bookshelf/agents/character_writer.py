@@ -20,11 +20,11 @@ def generate_characters(
         messages=[
             {
                 "role": "system",
-                "content": "Create detailed character profiles for a novel. Include name, age, physical appearance, personality traits, background, motivations, fears, desires, and relationships with other characters.",
+                "content": "Create detailed character profiles for a novel in JSON format. Include name, age, physical appearance, personality traits, background, motivations, fears, desires, and relationships with other characters.",
             },
             {
                 "role": "user",
-                "content": f"Create {number_of_characters} detailed and complex character profiles for a novel with the following concept:\n\n<concept>{prompt}</concept>\n\n<additional_instructions>{additional_instructions}</additional_instructions>",
+                "content": f"Create {number_of_characters} detailed and complex character profiles in JSON format for a novel with the following concept:\n\n<concept>{prompt}</concept>\n\n<additional_instructions>{additional_instructions}</additional_instructions>",
             },
         ],
         temperature=0.7,  # Higher temperature for more creative characters

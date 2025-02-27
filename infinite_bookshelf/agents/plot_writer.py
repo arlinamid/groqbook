@@ -18,7 +18,7 @@ def generate_plot_structure(
     Returns plot structure in JSON format and generation statistics.
     """
     USER_PROMPT = f"""
-    Create a detailed plot structure for a novel with the following:
+    Create a detailed plot structure for a novel with the following, and return the result in JSON format:
     
     <concept>{prompt}</concept>
     <genre>{genre}</genre>
