@@ -47,20 +47,19 @@ def init_groq_client(api_key):
             st.error(f"Error initializing Groq client: {e}")
     return None
 
-# Initialize the Groq client in the states dictionary
-states["groq"] = init_groq_client(GROQ_API_KEY)
+# Initialize the Groq client in the states dictionary, but don't validate yet
+states["groq"] = init_groq_client(GROQ_API_KEY) if GROQ_API_KEY else None
 
 # Ensure all states are initialized
 ensure_states(states)
 
 # Make sure groq client is available in session state after initialization
-if "groq" not in st.session_state:
+if "groq" not in st.session_state and GROQ_API_KEY:
     st.session_state.groq = init_groq_client(GROQ_API_KEY)
 
-# Validate API key is available
+# Display a warning if no API key, but don't stop execution - let the user enter one in the form
 if not st.session_state.groq:
-    st.error("⚠️ Groq API key not found. Please set your GROQ_API_KEY in .env file or environment variables.")
-    st.stop()
+    st.warning("⚠️ No Groq API key found. Please provide a valid Groq API key in the form below.")
 
 
 # 3: Define Streamlit page structure and functionality
@@ -118,13 +117,13 @@ try:
                 if groq_client:
                     st.session_state.groq = groq_client
                 else:
-                    st.error("⚠️ Could not initialize Groq client with the provided API key.")
+                    st.error("⚠️ Could not initialize Groq client with the provided API key. Please check the key and try again.")
                     st.session_state.button_disabled = False
                     st.stop()
             
-            # Verify we have a Groq client initialized
+            # Verify we have a Groq client initialized - critical validation point
             if not st.session_state.groq:
-                st.error("⚠️ Groq API key not found. Please provide a valid Groq API key.")
+                st.error("⚠️ No valid Groq API key found. Please provide a valid Groq API key in the form and try again.")
                 st.session_state.button_disabled = False
                 st.stop()
                 
