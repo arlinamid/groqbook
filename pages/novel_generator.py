@@ -38,10 +38,24 @@ states = {
     "generation_stage": "init"
 }
 
-# Initialize the Groq client regardless, but with a check before use
-states["groq"] = None if not GROQ_API_KEY else Groq(api_key=GROQ_API_KEY)
+# Create a function to initialize groq client
+def init_groq_client(api_key):
+    if api_key:
+        try:
+            return Groq(api_key=api_key)
+        except Exception as e:
+            st.error(f"Error initializing Groq client: {e}")
+    return None
 
+# Initialize the Groq client in the states dictionary
+states["groq"] = init_groq_client(GROQ_API_KEY)
+
+# Ensure all states are initialized
 ensure_states(states)
+
+# Make sure groq client is available in session state after initialization
+if "groq" not in st.session_state:
+    st.session_state.groq = init_groq_client(GROQ_API_KEY)
 
 # Validate API key is available
 if not st.session_state.groq:
@@ -100,7 +114,13 @@ try:
             # If the user provided an API key in the form, update it
             if groq_input_key:
                 st.session_state.api_key = groq_input_key
-                st.session_state.groq = Groq(api_key=groq_input_key)
+                groq_client = init_groq_client(groq_input_key)
+                if groq_client:
+                    st.session_state.groq = groq_client
+                else:
+                    st.error("⚠️ Could not initialize Groq client with the provided API key.")
+                    st.session_state.button_disabled = False
+                    st.stop()
             
             # Verify we have a Groq client initialized
             if not st.session_state.groq:
