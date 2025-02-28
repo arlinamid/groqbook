@@ -38,10 +38,15 @@ states = {
     "generation_stage": "init"
 }
 
-if GROQ_API_KEY:
-    states["groq"] = Groq()  
+# Initialize the Groq client regardless, but with a check before use
+states["groq"] = None if not GROQ_API_KEY else Groq(api_key=GROQ_API_KEY)
 
 ensure_states(states)
+
+# Validate API key is available
+if not st.session_state.groq:
+    st.error("⚠️ Groq API key not found. Please set your GROQ_API_KEY in .env file or environment variables.")
+    st.stop()
 
 
 # 3: Define Streamlit page structure and functionality
@@ -92,6 +97,17 @@ try:
 
     if submitted:
         try:
+            # If the user provided an API key in the form, update it
+            if groq_input_key:
+                st.session_state.api_key = groq_input_key
+                st.session_state.groq = Groq(api_key=groq_input_key)
+            
+            # Verify we have a Groq client initialized
+            if not st.session_state.groq:
+                st.error("⚠️ Groq API key not found. Please provide a valid Groq API key.")
+                st.session_state.button_disabled = False
+                st.stop()
+                
             # Create a placeholder for displaying generation statistics
             placeholder = st.empty()
             total_generation_statistics = GenerationStatistics(
